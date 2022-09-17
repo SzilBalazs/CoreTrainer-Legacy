@@ -1,0 +1,6 @@
+/nets/
+/data/
+json.hpp
+dataloader.so
+dataparser
+netconverter

@@ -22,6 +22,7 @@ def main():
     parser = argparse.ArgumentParser(description="NNUE trainer")
 
     parser.add_argument("training", help="Path to the .bin file containing training data")
+    parser.add_argument("validation", help="Path to the .bin file containing validation data")
 
     parser.add_argument("--epochs", type=int, dest="epochs", default=2, help="Training epochs")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size")
@@ -38,7 +39,12 @@ def main():
         logging.error(f"Training data {args.training} does not exist!")
         raise Exception(f"Training data {args.training} does not exist!")
 
+    if not os.path.exists(args.validation):
+        logging.error(f"Validation data {args.training} does not exist!")
+        raise Exception(f"Validation data {args.training} does not exist!")
+
     print("\nTraining data:", args.training, "\n")
+    print("\nValidation data:", args.validation, "\n")
 
     print("Epochs:", args.epochs)
     print("Batch size:", args.batch_size)
@@ -51,7 +57,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     with batchloader.BatchProvider(args.training, args.batch_size, args.epochs) as batch_provider:
-        trainer.train(batch_provider, model, optimizer)
+        trainer.train(batch_provider, model, optimizer, args.validation)
 
 
 if __name__ == "__main__":

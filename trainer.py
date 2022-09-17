@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("agg")
 
-ITERATIONS_BETWEEN_CHECKPOINTS = 200
+ITERATIONS_BETWEEN_CHECKPOINTS = 1000
 EPOCHS_BETWEEN_CHECKPOINTS = 1
 eval_influence = 0.9
 scale = 400
@@ -39,7 +39,27 @@ def save_model(model: torch.nn.Module, epoch):
     logging.info("Model saved!")
 
 
-def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
+def test_validation(model: torch.nn.Module, validation):
+    total_loss = 0
+    iterations = 0
+
+    with batchloader.BatchProvider(validation, 16384, 1) as provider:
+        for batch in provider:
+            features, scores, wdl = batch.get_tensors()
+
+            output = torch.sigmoid(model(features))
+            expected = torch.sigmoid(scores / scale) * eval_influence + wdl * (1 - eval_influence)
+
+            loss = torch.mean((output - expected) ** 2)
+
+            total_loss += loss.item()
+            iterations += 1
+
+    return total_loss / iterations
+
+
+def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
+          optimizer: torch.optim.Optimizer, validation):
     epoch = 1
     iterations = 0
     since_checkpoint = 0
@@ -48,7 +68,9 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module, opt
     current_loss = 0
 
     checkpoints = []
-    losses = []
+    train_losses = []
+    epochs = []
+    val_losses = []
 
     clipper = WeightClipper()
 
@@ -63,13 +85,22 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module, opt
             if batch_provider.reader.contents.epoch != epoch:
                 current_time = time.time()
 
+                validation_loss = test_validation(model, validation)
+
+                epochs.append(iterations)
+                val_losses.append(validation_loss)
+
                 print("------------------------")
                 print(f"Epoch = {epoch}\n"
                       f"Epoch time = {round(current_time - epoch_time + 1)}s\n"
                       f"Positions/second = {round(positions / (current_time - epoch_time + 1))}\n"
-                      f"Total loss = {current_loss / since_checkpoint}")
+                      f"Training loss = {current_loss / since_checkpoint}\n"
+                      f"Validation loss = {validation_loss}")
                 print("------------------------")
                 print()
+
+                logging.info(f"Epoch {epoch} finished. "
+                             f"(train loss = {current_loss / since_checkpoint} val loss = {validation_loss}")
 
                 if epoch % EPOCHS_BETWEEN_CHECKPOINTS == 0:
                     save_model(model, epoch)
@@ -78,7 +109,6 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module, opt
                 epoch = batch_provider.reader.contents.epoch
                 since_checkpoint = 0
                 positions = 0
-                logging.info(f"Started epoch {epoch}")
                 epoch_time = time.time()
 
             # Updating variables
@@ -112,9 +142,10 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module, opt
 
                 # Plotting
                 checkpoints.append(iterations)
-                losses.append(current_loss / since_checkpoint)
+                train_losses.append(current_loss / since_checkpoint)
 
-                plt.plot(checkpoints, losses)
+                plt.plot(checkpoints, train_losses, label="Train loss")
+                plt.plot(epochs, val_losses, label="Val loss")
 
                 plt.title("Training")
                 plt.xlabel("Iteration")

@@ -107,7 +107,6 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
 
                 current_loss = 0
                 epoch = batch_provider.reader.contents.epoch
-                since_checkpoint = 0
                 positions = 0
                 epoch_time = time.time()
 
@@ -163,8 +162,8 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
         exit(0)
 
     print(f"\n\n"
-          f"Finished training of {epoch} epochs!\nSaving model...")
+          f"Finished training of {epoch} epochs!\n")
 
     save_model(model, epoch)
 
-    logging.info("Training has finished.\nSaving model...")
+    logging.info("Training has finished.\n")

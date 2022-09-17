@@ -7,20 +7,31 @@
 #include <random>
 #include <fstream>
 
-const std::string outFilePath = "data/val.bin";
-const std::string inFilePath = "data/data_0.txt";
-
 int main() {
 
+    std::string inFilePath, outFilePath;
+    char c;
     int n, blocks;
+
+    std::cout << "Input file path: ";
+    std::cin >> inFilePath;
+
+    std::cout << "Output file path: ";
+    std::cin >> outFilePath;
+
+    std::cout << "Reset output file (y/n): ";
+    std::cin >> c;
+
     std::cout << "N = ";
     std::cin >> n;
     std::cout << "Block count = ";
     std::cin >> blocks;
 
-    FILE *deleteFile;
-    deleteFile = fopen(outFilePath.c_str(), "wb");
-    fclose(deleteFile);
+    if (c == 'y') {
+        FILE *deleteFile;
+        deleteFile = fopen(outFilePath.c_str(), "wb");
+        fclose(deleteFile);
+    }
 
 
     std::ifstream f(inFilePath, std::ios_base::in);

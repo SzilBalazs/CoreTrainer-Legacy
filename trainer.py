@@ -47,7 +47,7 @@ def test_validation(model: torch.nn.Module, validation):
         for batch in provider:
             features, scores, wdl = batch.get_tensors()
 
-            output = torch.sigmoid(model(features))
+            output = model(features)
             expected = torch.sigmoid(scores / scale) * eval_influence + wdl * (1 - eval_influence)
 
             loss = torch.mean((output - expected) ** 2)

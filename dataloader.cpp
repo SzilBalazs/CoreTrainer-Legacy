@@ -2,10 +2,11 @@
 #include <cstring>
 #include <string>
 #include <cassert>
+#include <thread>
 #include <iostream>
 
-constexpr unsigned int WHITE = 0;
-constexpr unsigned int BLACK = 1;
+constexpr bool WHITE = 0;
+constexpr bool BLACK = 1;
 constexpr unsigned int KING = 0;
 constexpr unsigned int PAWN = 1;
 constexpr unsigned int KNIGHT = 2;
@@ -13,8 +14,8 @@ constexpr unsigned int BISHOP = 3;
 constexpr unsigned int ROOK = 4;
 constexpr unsigned int QUEEN = 5;
 
-unsigned int getOffset(const unsigned int color, const unsigned int piece) {
-    return color * 384 + piece * 64;
+unsigned int getOffset(const bool color, const unsigned int piece, const unsigned int square, const bool perspective) {
+    return (perspective == WHITE ? color : !color) * 384 + piece * 64 + (perspective == WHITE ? square : square^56);
 }
 
 struct DataEntry {
@@ -35,20 +36,27 @@ struct Batch {
     int size;
     int* scores;
     int* wdl;
-    bool* features;
+    bool* stm;
+    bool* whiteFeatures;
+    bool* blackFeatures;
 
     Batch(const std::vector<DataEntry> &data) {
         this->size = data.size();
 
         this->scores = new int[size];
         this->wdl = new int[size];
-        this->features = new bool[size * 768];
+        this->stm = new bool[size];
+        this->whiteFeatures = new bool[size * 768];
+        this->blackFeatures = new bool[size * 768];
 
-        std::memset(features, 0, size * 768);
+        std::memset(whiteFeatures, 0, size * 768);
+        std::memset(blackFeatures, 0, size * 768);
 
-        bool *featurePointer = features;
+        bool *whiteFeaturePointer = whiteFeatures;
+        bool *blackFeaturePointer = blackFeatures;
         for (int i = 0; i < size; i++) {
-            featurePointer = features + i * 768;
+            whiteFeaturePointer = whiteFeatures + i * 768;
+            blackFeaturePointer = blackFeatures + i * 768;
 
             // Processing the fen
             unsigned int sq = 56, idx = 0;
@@ -59,44 +67,57 @@ struct Batch {
                 } else if (c == '/') {
                     sq -= 16;
                 } else if (c == ' ') {
+                    stm[i] = data[i].fen[idx] == 'w' ? 0 : 1;
                     break;
                 } else {
                     switch (c) {
                         case 'k':
-                            featurePointer[getOffset(BLACK, KING) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, KING, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, KING, sq, BLACK)] = true;
                             break;
                         case 'K':
-                            featurePointer[getOffset(WHITE, KING) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, KING, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, KING, sq, BLACK)] = true;
                             break;
                         case 'p':
-                            featurePointer[getOffset(BLACK, PAWN) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, PAWN, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, PAWN, sq, BLACK)] = true;
                             break;
                         case 'P':
-                            featurePointer[getOffset(WHITE, PAWN) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, PAWN, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, PAWN, sq, BLACK)] = true;
                             break;
                         case 'n':
-                            featurePointer[getOffset(BLACK, KNIGHT) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, KNIGHT, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, KNIGHT, sq, BLACK)] = true;
                             break;
                         case 'N':
-                            featurePointer[getOffset(WHITE, KNIGHT) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, KNIGHT, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, KNIGHT, sq, BLACK)] = true;
                             break;
                         case 'b':
-                            featurePointer[getOffset(BLACK, BISHOP) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, BISHOP, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, BISHOP, sq, BLACK)] = true;
                             break;
                         case 'B':
-                            featurePointer[getOffset(WHITE, BISHOP) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, BISHOP, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, BISHOP, sq, BLACK)] = true;
                             break;
                         case 'r':
-                            featurePointer[getOffset(BLACK, ROOK) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, ROOK, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, ROOK, sq, BLACK)] = true;
                             break;
                         case 'R':
-                            featurePointer[getOffset(WHITE, ROOK) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, ROOK, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, ROOK, sq, BLACK)] = true;
                             break;
                         case 'q':
-                            featurePointer[getOffset(BLACK, QUEEN) + sq] = true;
+                            whiteFeaturePointer[getOffset(BLACK, QUEEN, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(BLACK, QUEEN, sq, BLACK)] = true;
                             break;
                         case 'Q':
-                            featurePointer[getOffset(WHITE, QUEEN) + sq] = true;
+                            whiteFeaturePointer[getOffset(WHITE, QUEEN, sq, WHITE)] = true;
+                            blackFeaturePointer[getOffset(WHITE, QUEEN, sq, BLACK)] = true;
                             break;
                     }
 
@@ -104,7 +125,7 @@ struct Batch {
                 }
             }
 
-            scores[i] = data[i].score;
+            scores[i] = stm[i]==0?data[i].score:-data[i].score;
 
             wdl[i] = data[i].wdl;
         }
@@ -112,8 +133,10 @@ struct Batch {
 
     ~Batch() {
         delete[] scores;
-        delete[] features;
         delete[] wdl;
+        delete[] stm;
+        delete[] whiteFeatures;
+        delete[] blackFeatures;
     }
 };
 

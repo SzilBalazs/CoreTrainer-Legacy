@@ -11,11 +11,14 @@ constexpr int SCALE = 255;
 
 int16_t L_0_WEIGHTS[L_0_SIZE * L_1_SIZE];
 int16_t L_0_BIASES[L_1_SIZE];
-int16_t L_1_WEIGHTS[L_1_SIZE * 1];
+int16_t L_1_WEIGHTS[L_1_SIZE * 2];
 int16_t L_1_BIASES[1];
 
 int main() {
-    std::ifstream f("nn_v3/nnue_final.json");
+    std::string inFile;
+    std::cout << "Input file path: ";
+    std::cin >> inFile;
+    std::ifstream f(inFile);
     json data = json::parse(f);
     FILE *file;
     file = fopen("corenet.bin", "wb");
@@ -31,7 +34,7 @@ int main() {
         }
     }
 
-    for (int i = 0; i < L_1_SIZE; i++) {
+    for (int i = 0; i < L_1_SIZE * 2; i++) {
         L_1_WEIGHTS[i] = double(data["l1.weight"][0][i]) * SCALE;
     }
 
@@ -40,7 +43,7 @@ int main() {
     fwrite(L_0_WEIGHTS, sizeof(int16_t), L_0_SIZE * L_1_SIZE, file);
     fwrite(L_0_BIASES, sizeof(int16_t), L_1_SIZE, file);
 
-    fwrite(L_1_WEIGHTS, sizeof(int16_t), L_1_SIZE * 1, file);
+    fwrite(L_1_WEIGHTS, sizeof(int16_t), L_1_SIZE * 2, file);
     fwrite(L_1_BIASES, sizeof(int16_t), 1, file);
 
     fclose(file);

@@ -13,18 +13,24 @@ class Batch(ctypes.Structure):
         ('size', ctypes.c_int),
         ('scores', ctypes.POINTER(ctypes.c_int)),
         ('wdl', ctypes.POINTER(ctypes.c_int)),
-        ('features', ctypes.POINTER(ctypes.c_bool))
+        ('stm', ctypes.POINTER(ctypes.c_bool)),
+        ('whiteFeatures', ctypes.POINTER(ctypes.c_bool)),
+        ('blackFeatures', ctypes.POINTER(ctypes.c_bool)),
     ]
 
     def get_tensors(self):
         score_tensor = torch.from_numpy(np.ctypeslib.as_array(self.scores, shape=(self.size, 1)).astype("float32"))
+        stm_tensor = torch.from_numpy(np.ctypeslib.as_array(self.stm, shape=(self.size, 1)).astype("float32"))
 
-        all_features = np.ctypeslib.as_array(self.features, shape=(self.size * 768, 1)).astype("float32")
-        feature_tensor = torch.from_numpy(np.reshape(all_features, (-1, 768)))
+        white_all_features = np.ctypeslib.as_array(self.whiteFeatures, shape=(self.size * 768, 1)).astype("float32")
+        white_feature_tensor = torch.from_numpy(np.reshape(white_all_features, (-1, 768)))
+
+        black_all_features = np.ctypeslib.as_array(self.blackFeatures, shape=(self.size * 768, 1)).astype("float32")
+        black_feature_tensor = torch.from_numpy(np.reshape(black_all_features, (-1, 768)))
 
         wdl_tensor = torch.from_numpy(np.ctypeslib.as_array(self.wdl, shape=(self.size, 1)).astype("float32")) / 2
 
-        return feature_tensor, score_tensor, wdl_tensor
+        return white_feature_tensor, black_feature_tensor, stm_tensor, score_tensor, wdl_tensor
 
 
 BatchPtr = ctypes.POINTER(Batch)

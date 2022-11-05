@@ -10,17 +10,18 @@ import trainer
 from model import NNUE
 
 ARCHITECTURE = """
-+-----------------------+
-|   NNUE Architecture   |
-|      768->256->1      |
-|   Activation: ReLU    |
-+-----------------------+
++-------------------------+
+|    NNUE Architecture    |
+|     2x(768->256)->1     |
+|    Activation: ReLU     |
++-------------------------+
 """
 
 
 def main():
     parser = argparse.ArgumentParser(description="NNUE trainer")
 
+    parser.add_argument("experiment", help="Name of the experiment")
     parser.add_argument("training", help="Path to the .bin file containing training data")
     parser.add_argument("validation", help="Path to the .bin file containing validation data")
 
@@ -57,7 +58,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     with batchloader.BatchProvider(args.training, args.batch_size, args.epochs) as batch_provider:
-        trainer.train(batch_provider, model, optimizer, args.validation)
+        trainer.train(batch_provider, model, optimizer, args.validation, args.experiment)
 
 
 if __name__ == "__main__":

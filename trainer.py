@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("agg")
 
-ITERATIONS_BETWEEN_CHECKPOINTS = 1000
+ITERATIONS_BETWEEN_CHECKPOINTS = 50
 EPOCHS_BETWEEN_CHECKPOINTS = 1
 eval_influence = 0.9
 scale = 400
@@ -22,10 +22,10 @@ class WeightClipper:
             module.weight.data.clamp_(-1.98, 1.98)
 
 
-def save_model(model: torch.nn.Module, epoch):
+def save_model(model: torch.nn.Module, epoch, experiment):
     print("Saving model...")
 
-    path = "nets/nnue_" + (str(epoch) if epoch != 0 else "final")
+    path = "nets/" + experiment + "_" + (str(epoch) if epoch != 0 else "final")
 
     torch.save(model.state_dict(), path + ".net")
 
@@ -45,9 +45,9 @@ def test_validation(model: torch.nn.Module, validation):
 
     with batchloader.BatchProvider(validation, 16384, 1) as provider:
         for batch in provider:
-            features, scores, wdl = batch.get_tensors()
+            white_features, black_features, stm, scores, wdl = batch.get_tensors()
 
-            output = model(features)
+            output = model(white_features, black_features, stm)
             expected = torch.sigmoid(scores / scale) * eval_influence + wdl * (1 - eval_influence)
 
             loss = torch.mean((output - expected) ** 2)
@@ -59,7 +59,7 @@ def test_validation(model: torch.nn.Module, validation):
 
 
 def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
-          optimizer: torch.optim.Optimizer, validation):
+          optimizer: torch.optim.Optimizer, validation, experiment):
     epoch = 1
     iterations = 0
     since_checkpoint = 0
@@ -103,7 +103,7 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
                              f"(train loss = {current_loss / since_checkpoint} val loss = {validation_loss}")
 
                 if epoch % EPOCHS_BETWEEN_CHECKPOINTS == 0:
-                    save_model(model, epoch)
+                    save_model(model, epoch, experiment)
 
                 current_loss = 0
                 epoch = batch_provider.reader.contents.epoch
@@ -111,11 +111,11 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
                 epoch_time = time.time()
 
             # Updating variables
-            features, scores, wdl = batch.get_tensors()
+            white_features, black_features, stm, scores, wdl = batch.get_tensors()
 
             # The actual training
             optimizer.zero_grad()
-            output = model(features)
+            output = model(white_features, black_features, stm)
 
             # Calculating loss using mean square error
             expected = torch.sigmoid(scores / scale) * eval_influence + wdl * (1 - eval_influence)
@@ -157,13 +157,13 @@ def train(batch_provider: batchloader.BatchProvider, model: torch.nn.Module,
                 current_loss = 0
                 since_checkpoint = 0
     except KeyboardInterrupt:
-        save_model(model, 0)
+        save_model(model, 0, experiment)
         print("Training has stopped!")
         exit(0)
 
     print(f"\n\n"
           f"Finished training of {epoch} epochs!\n")
 
-    save_model(model, epoch)
+    save_model(model, epoch, experiment)
 
     logging.info("Training has finished.\n")

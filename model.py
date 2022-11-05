@@ -12,13 +12,15 @@ class NNUE(nn.Module):
         super(NNUE, self).__init__()
 
         self.l0 = nn.Linear(L_0_IN, L_1_SIZE)
+        self.l1 = nn.Linear(2 * L_1_SIZE, 1)
         self.relu = nn.ReLU()
-        self.l1 = nn.Linear(L_1_SIZE, 1)
 
-    def forward(self, x):
+    def forward(self, white_features, black_features, stm):
 
-        x = self.l0(x)
-        x = self.relu(x)
-        x = self.l1(x)
+        w = self.l0(white_features)
+        b = self.l0(black_features)
 
-        return torch.sigmoid(x)
+        x = self.relu(((1-stm) * torch.cat([w, b], dim=1)) + (stm * torch.cat([b, w], dim=1)))
+        x = torch.sigmoid(self.l1(x))
+
+        return x
